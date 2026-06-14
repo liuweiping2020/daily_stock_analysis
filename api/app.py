@@ -219,31 +219,44 @@ def create_app(static_dir: Optional[Path] = None) -> FastAPI:
     # ============================================================
     # CORS 配置
     # ============================================================
-    
+
+    # 同时支持生产端口 (8000) 和开发端口 (5173, 3000, 8080, 5000)
+    # 支持常见的本地访问方式：localhost, 127.0.0.1, 0.0.0.0
     allowed_origins = [
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://0.0.0.0:8000",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+        "http://localhost:5000",
+        "http://127.0.0.1:5000",
     ]
-    
-    # 从环境变量添加额外的允许来源
+
+    # 从环境变量添加额外的允许来源（例如：内网 IP、自定义域名）
     extra_origins = os.environ.get("CORS_ORIGINS", "")
     if extra_origins:
         allowed_origins.extend([o.strip() for o in extra_origins.split(",") if o.strip()])
-    
+
     # 允许所有来源（开发/演示用）
     allow_all_origins = os.environ.get("CORS_ALLOW_ALL", "").lower() == "true"
-    allow_credentials = not allow_all_origins
     if allow_all_origins:
         allowed_origins = ["*"]
-    
+        allow_credentials = False
+    else:
+        allow_credentials = True
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,
         allow_credentials=allow_credentials,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["Content-Type", "Content-Length", "X-Task-Id"],
+        max_age=3600,
     )
 
     add_auth_middleware(app)
