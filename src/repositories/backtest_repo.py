@@ -40,7 +40,9 @@ class BacktestRepository:
         cutoff_dt = datetime.now() - timedelta(days=min_age_days)
 
         with self.db.get_session() as session:
-            conditions = [AnalysisHistory.created_at <= cutoff_dt]
+            conditions = []
+            if not force:
+                conditions.append(AnalysisHistory.created_at <= cutoff_dt)
             if code:
                 conditions.append(AnalysisHistory.code == code)
             conditions.append(
