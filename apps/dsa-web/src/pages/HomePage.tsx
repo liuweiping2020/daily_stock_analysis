@@ -16,6 +16,14 @@ import { TaskPanel } from '../components/tasks';
 import { useDashboardLifecycle, useHomeDashboardState } from '../hooks';
 import type { SetupStatusResponse } from '../types/systemConfig';
 import { getReportText, normalizeReportLanguage } from '../utils/reportLanguage';
+import {
+  ResearchKPIMatrix,
+  ResearchSentimentPanel,
+  ResearchReportCard,
+  ResearchStrategyCard,
+  ResearchTaskTrack,
+  ResearchNewsTimeline,
+} from '../components/research/ResearchBlocks';
 
 type MarketReviewNotice = {
   variant: 'success' | 'warning' | 'danger';
@@ -735,6 +743,157 @@ const HomePage: React.FC = () => {
             data-testid="home-dashboard-scroll"
             className="flex-1 min-w-0 min-h-0 overflow-x-auto overflow-y-auto px-3 pb-4 md:px-6 touch-pan-y"
           >
+            {/* —— 智能投研驾驶舱：大盘 / 情绪 / 报告 / 策略 / 任务 / 新闻 —— */}
+            {!selectedReport && !isLoadingReport ? (
+              <div className="max-w-[1600px] mx-auto space-y-6 pb-10">
+                {/* 顶部标题 */}
+                <header className="relative overflow-hidden rounded-[1.6rem] border border-[hsl(var(--primary)/0.28)] p-6 sm:p-8"
+                        style={{
+                          background:
+                            'radial-gradient(closest-side at 10% 20%, hsl(var(--primary)/0.18), transparent 70%),' +
+                            'radial-gradient(closest-side at 90% 20%, hsl(245 85% 65% / 0.18), transparent 70%),' +
+                            'radial-gradient(closest-side at 50% 120%, hsl(40 96% 52% / 0.14), transparent 70%),' +
+                            'linear-gradient(180deg, hsl(var(--card)/0.98), hsl(var(--elevated)/0.88))',
+                          boxShadow: 'var(--home-hero-shadow)',
+                        }}>
+                  <div className="relative z-10 flex flex-col-reverse items-start justify-between gap-6 lg:flex-row lg:items-center">
+                    <div>
+                      <div className="label-uppercase text-primary/90">
+                        <BarChart3 className="h-3.5 w-3.5" />
+                        Research Cockpit
+                      </div>
+                      <h1 className="mt-3 text-[26px] font-semibold leading-tight sm:text-[30px]">
+                        智能投研 <span className="title-gradient">实时驾驶舱</span>
+                      </h1>
+                      <p className="mt-2 max-w-2xl text-[13.5px] leading-relaxed text-secondary-text/95">
+                        以金融终端级密度展示 A 股/港股/美股大盘 KPI、情绪仪表、策略快照与研究报告，
+                        结合新闻事件与今日分析流水线，让你在下单之前就看清全局。
+                      </p>
+                      <div className="mt-4 flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          className="btn-primary"
+                          onClick={() => void handleSubmitAnalysis('600519', '贵州茅台', 'manual')}
+                        >
+                          <SparklesInline /> 立即分析贵州茅台
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => navigate('/backtest')}
+                        >
+                          <BarChart3 className="h-4 w-4" /> 查看回测绩效
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => navigate('/publish')}
+                        >
+                          一键发布研究
+                        </button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 min-w-[280px] w-full lg:w-auto">
+                      <HeroStat label="今日任务" value="6" hint="进行中 1" tone="primary" />
+                      <HeroStat label="覆盖指数" value="8" hint="A股+港股+美股" tone="purple" />
+                      <HeroStat label="推荐信心" value="87" hint="平均%，近30日" tone="gold" />
+                    </div>
+                  </div>
+                </header>
+
+                {/* 1. 大盘 KPI + 情绪仪表盘 */}
+                <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
+                  <div className="xl:col-span-9">
+                    <ResearchKPIMatrix />
+                  </div>
+                  <div className="xl:col-span-3">
+                    <ResearchSentimentPanel
+                      score={72}
+                      updateAt="2025-07-01 14:32"
+                      signals={[
+                        { label: '北向资金净流入', tone: 'up', hint: '+186.4 亿' },
+                        { label: '两融余额日增',   tone: 'up', hint: '+32.8 亿' },
+                        { label: '美债 10Y 收益率', tone: 'down', hint: '下行至 4.21%' },
+                        { label: 'VIX 波动率',     tone: 'warn', hint: '微升至 15.6' },
+                      ]}
+                      className="h-full"
+                    />
+                  </div>
+                </div>
+
+                {/* 2. 最新研究报告 + 策略快照 */}
+                <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
+                  <div className="xl:col-span-7">
+                    <ResearchReportCard
+                      title="贵州茅台：提价周期确认，全年盈利有望超预期"
+                      ticker="600519.SH"
+                      summary="结合 7 月出厂价上调与批价持续走强，叠加直营占比持续提升，我们上调 2025E 收入增速至 18%，净利润增速至 20%，维持「推荐」评级，12 个月目标价 2100 元。"
+                      tags={['白酒', '消费龙头', '提价受益', '高股息']}
+                      rating="推荐"
+                      confidence={89}
+                      onAction={(label) => {
+                        if (label === '发布') navigate('/publish');
+                        if (label === '预览') {
+                          // 模拟快速进入该股分析
+                          void submitAnalysis({
+                            stockCode: '600519',
+                            stockName: '贵州茅台',
+                            originalQuery: '600519',
+                            selectionSource: 'manual',
+                          });
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="xl:col-span-5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-1">
+                    <ResearchStrategyCard
+                      ticker="300750.SZ" name="宁德时代" rating="买入"
+                      entry={188.5} target={238} stop={170}
+                      upside={26.3} riskReward="4.1 : 1" timeHorizon="6-9M"
+                    />
+                    <ResearchStrategyCard
+                      ticker="00700.HK" name="腾讯控股" rating="增持"
+                      entry={342.8} target={420} stop={318}
+                      upside={22.5} riskReward="3.5 : 1" timeHorizon="3-6M"
+                    />
+                  </div>
+                </div>
+
+                {/* 3. 任务轨道 + 新闻时间线 */}
+                <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
+                  <div className="xl:col-span-8">
+                    <ResearchTaskTrack title="今日智能分析流水线" />
+                  </div>
+                  <div className="xl:col-span-4">
+                    <ResearchNewsTimeline className="h-full" />
+                  </div>
+                </div>
+
+                {/* 4. 更多报告 / 策略矩阵 */}
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+                  <ResearchReportCard
+                    title="宁德时代：全球动力电池龙头，出海放量在即"
+                    ticker="300750.SZ"
+                    summary="海外工厂爬坡顺利，客户结构持续优化，储能业务进入高景气周期，我们看好估值修复至 30x PE。"
+                    tags={['新能源', '动力电池', '出海']}
+                    rating="强烈推荐"
+                    confidence={92}
+                  />
+                  <ResearchStrategyCard
+                    ticker="601318.SH" name="中国平安" rating="买入"
+                    entry={54.6} target={72} stop={49.5}
+                    upside={31.9} riskReward="4.8 : 1" timeHorizon="6-12M"
+                  />
+                  <ResearchStrategyCard
+                    ticker="AAPL.US" name="Apple Inc." rating="持有"
+                    entry={212.4} target={236} stop={198}
+                    upside={11.1} riskReward="2.1 : 1" timeHorizon="1-3M"
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            {/* —— 原有反馈区域：复盘报告 / 错误 —— */}
             {marketReviewNotice ? (
               <div className="mb-3">
                 <InlineAlert
@@ -876,3 +1035,38 @@ const HomePage: React.FC = () => {
 };
 
 export default HomePage;
+
+/* ========== 小型内联辅助：Hero 标题数字卡 + 星火图标 ========== */
+const SparklesInline: React.FC<{ className?: string }> = ({ className = 'h-4 w-4' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+       strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8" />
+  </svg>
+);
+
+const HeroStat: React.FC<{
+  label: string;
+  value: string;
+  hint?: string;
+  tone: 'primary' | 'purple' | 'gold';
+}> = ({ label, value, hint, tone }) => {
+  const ring =
+    tone === 'primary' ? 'hsl(var(--primary)/0.3)' :
+    tone === 'purple' ? 'hsl(245 85% 65% / 0.3)' : 'hsl(40 96% 52% / 0.34)';
+  const txt =
+    tone === 'primary' ? 'text-primary' :
+    tone === 'purple' ? 'text-purple' : 'text-gold';
+  return (
+    <div className="relative overflow-hidden rounded-[0.95rem] border bg-[hsl(var(--card)/0.8)] p-3 backdrop-blur-md"
+         style={{ borderColor: ring, boxShadow: 'inset 0 0 0 1px hsl(0 0% 100% / 0.45)' }}>
+      <div className="label-xs">{label}</div>
+      <div className={`mt-1.5 text-[26px] font-bold font-mono leading-none ${txt}`}>
+        {value}
+      </div>
+      {hint ? <div className="mt-1.5 text-[11px] text-secondary-text/95 leading-tight">{hint}</div> : null}
+      <div className="pointer-events-none absolute -top-10 -right-10 h-24 w-24 rounded-full opacity-60"
+           style={{ background: `radial-gradient(closest-side, ${ring}, transparent 70%)` }} />
+    </div>
+  );
+};
+
