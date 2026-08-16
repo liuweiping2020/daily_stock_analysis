@@ -202,9 +202,10 @@ class UnifiedDataAPI:
 
         try:
             result = self.manager.get_daily_data(
-                code=code,
+                stock_code=code,
                 start_date=start_date.strftime("%Y-%m-%d"),
                 end_date=end_date.strftime("%Y-%m-%d"),
+                days=days,
             )
             # DataFetcherManager.get_daily_data returns Tuple[DataFrame, source_name].
             if isinstance(result, tuple):
@@ -244,7 +245,7 @@ class UnifiedDataAPI:
         market = market or detect_market(code)
 
         try:
-            quote_data = self.manager.get_realtime_quote(code)
+            quote_data = self.manager.get_realtime_quote(stock_code=code)
             if quote_data is None:
                 return None
 
@@ -296,7 +297,7 @@ class UnifiedDataAPI:
         market = market or detect_market(code)
 
         try:
-            context = self.manager.get_fundamental_context(code)
+            context = self.manager.get_fundamental_context(stock_code=code)
             if not isinstance(context, dict) or not context:
                 return None
 
