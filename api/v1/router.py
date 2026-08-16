@@ -11,7 +11,7 @@ API v1 路由聚合
 
 from fastapi import APIRouter
 
-from api.v1.endpoints import alerts, analysis, auth, history, stocks, backtest, system_config, agent, usage, portfolio, experience, sim_trading, data_health, strategy_backtest, unified_data, factors
+from api.v1.endpoints import alerts, analysis, auth, history, stocks, backtest, system_config, agent, usage, portfolio, experience, sim_trading, data_health, strategy_backtest, unified_data, factors, media_publish
 
 # 创建 v1 版本主路由
 router = APIRouter(prefix="/api/v1")
@@ -110,4 +110,10 @@ router.include_router(
     unified_data.router,
     prefix="/data",
     tags=["UnifiedData"]
+)
+
+router.include_router(
+    media_publish.router,
+    prefix="/media",
+    tags=["MediaPublish"]
 )

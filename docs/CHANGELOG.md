@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [新功能] 策略抽象与事件驱动回测：新增 Strategy 基类（MA交叉、RSI、多策略聚合）、EventBacktestEngine 事件驱动回测引擎，支持 A 股佣金/印花税/整手规则、权益曲线、最大回撤和 Sharpe 比率计算。
 - [新功能] 统一数据API：新增 UnifiedDataAPI 市场无关数据访问层，自动检测 cn/hk/us 市场，统一日线/行情/基本面/搜索响应格式，支持多市场批量查询和综合摘要；新增 /api/v1/data 系列接口。
 - [新功能] 因子挖掘引擎：新增 Factor 基类与 6 个内置因子（MA偏离度、RSI、波动率、动量、量比、价量相关），FactorEngine 支持 IC/rank IC 评估，FactorService 提供计算、存储和查询能力。
+- [新功能] 多媒体多平台发布：新增 MediaPlatform/MediaPublishTask 模型，支持微信公众号（草稿箱）、知乎（草稿）、通用导出（剪贴板+COSE兼容JSON）等平台的注册、凭据管理、内容来源适配（分析历史/大盘复盘/手工）、任务创建、立即执行、批量调度、失败重试与取消；并提供 /api/v1/media 系列接口。
 
 ## [3.19.0] - 2026-05-29
 

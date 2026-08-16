@@ -855,6 +855,87 @@ class FactorSnapshot(Base):
     )
 
 
+class MediaPlatform(Base):
+    """注册过的多媒体平台及凭据。
+
+    典型平台：wechat_mp（微信公众号草稿箱）、zhihu（知乎文章）、
+    xueqiu（雪球）、weibo（微博）、toutiao（今日头条）、
+    clipboard_export（通用剪贴板导出，无需凭据，仅输出结构化 JSON）。
+
+    credentials_json 按平台约定字段存储；写入 API 时建议在传输层加密，
+    这里仅做本地持久化，结构保持透明以支持不同 OAuth/令牌场景。
+    """
+    __tablename__ = 'media_platforms'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    platform_code = Column(String(32), nullable=False, index=True)
+    display_name = Column(String(128), nullable=False)
+    account_id = Column(String(128), nullable=True, index=True)
+    credentials_json = Column(Text, nullable=True)  # 按平台各自字段
+    enabled = Column(Boolean, nullable=False, default=True, index=True)
+    default_target = Column(String(256), nullable=True)  # 如公众号原创声明、知乎专栏等
+    extra_json = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.now, index=True)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, index=True)
+
+    __table_args__ = (
+        UniqueConstraint('platform_code', 'account_id', name='uix_media_platform_account'),
+    )
+
+
+class MediaPublishTask(Base):
+    """多媒体多平台发布任务。
+
+    任务粒度：一个 source（analysis_history / market_review / free_text）→
+    一组目标平台，每条任务记录一个具体发布动作（单平台单条内容）。
+    status: pending / queued / running / published / failed / retried / cancelled
+    """
+    __tablename__ = 'media_publish_tasks'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    # 内容来源
+    source_type = Column(String(32), nullable=False, index=True)  # analysis | market_review | manual
+    source_ref_id = Column(Integer, nullable=True, index=True)  # analysis_history.id 或其他
+    source_display_name = Column(String(256), nullable=True)
+
+    # 内容本体（已按目标平台预处理的文本/标题/封面）
+    title = Column(String(512), nullable=False)
+    content_markdown = Column(Text, nullable=True)
+    content_html = Column(Text, nullable=True)
+    cover_url = Column(String(512), nullable=True)
+    tags_csv = Column(String(512), nullable=True)  # 逗号分隔标签
+    original_author = Column(String(128), nullable=True)
+    summary = Column(Text, nullable=True)
+
+    # 发布目标
+    platform_id = Column(Integer, ForeignKey('media_platforms.id'), nullable=False, index=True)
+    platform_code = Column(String(32), nullable=False, index=True)
+    target_location = Column(String(256), nullable=True)  # 可选: 专栏/分类/草稿箱
+
+    # 调度与重试
+    status = Column(String(24), nullable=False, default='pending', index=True)
+    schedule_at = Column(DateTime, nullable=True, index=True)
+    execute_started_at = Column(DateTime, nullable=True)
+    executed_at = Column(DateTime, nullable=True, index=True)
+    retry_count = Column(Integer, nullable=False, default=0)
+    max_retries = Column(Integer, nullable=False, default=2)
+
+    # 结果
+    remote_article_id = Column(String(256), nullable=True)
+    remote_url = Column(String(512), nullable=True)
+    remote_extra_json = Column(Text, nullable=True)
+    error_code = Column(String(64), nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.now, index=True)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, index=True)
+
+    __table_args__ = (
+        Index('ix_media_task_source', 'source_type', 'source_ref_id'),
+        Index('ix_media_task_status_schedule', 'status', 'schedule_at'),
+    )
+
+
 class _DatabaseManagerMeta(type):
     """Serialize DatabaseManager construction across __new__ and __init__."""
 
