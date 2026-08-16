@@ -11,7 +11,7 @@ API v1 路由聚合
 
 from fastapi import APIRouter
 
-from api.v1.endpoints import alerts, analysis, auth, history, stocks, backtest, system_config, agent, usage, portfolio
+from api.v1.endpoints import alerts, analysis, auth, history, stocks, backtest, system_config, agent, usage, portfolio, experience, sim_trading, data_health, strategy_backtest, unified_data, factors
 
 # 创建 v1 版本主路由
 router = APIRouter(prefix="/api/v1")
@@ -74,4 +74,40 @@ router.include_router(
     alerts.router,
     prefix="/alerts",
     tags=["Alerts"]
+)
+
+router.include_router(
+    data_health.router,
+    prefix="/data-health",
+    tags=["DataHealth"]
+)
+
+router.include_router(
+    experience.router,
+    prefix="/experience",
+    tags=["Experience"]
+)
+
+router.include_router(
+    sim_trading.router,
+    prefix="/sim-trading",
+    tags=["SimTrading"]
+)
+
+router.include_router(
+    strategy_backtest.router,
+    prefix="/strategy-backtest",
+    tags=["StrategyBacktest"]
+)
+
+router.include_router(
+    factors.router,
+    prefix="/factors",
+    tags=["Factors"]
+)
+
+router.include_router(
+    unified_data.router,
+    prefix="/data",
+    tags=["UnifiedData"]
 )

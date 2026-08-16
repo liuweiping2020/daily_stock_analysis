@@ -45,6 +45,7 @@ class BaseAgent(ABC):
     agent_name: str = "base"
     tool_names: Optional[List[str]] = None  # None → all tools available
     max_steps: int = 6
+    cot_template_name: Optional[str] = None  # e.g. "technical", "risk"
 
     def __init__(
         self,
@@ -155,10 +156,32 @@ class BaseAgent(ABC):
     # Internal helpers
     # -----------------------------------------------------------------
 
+    def _inject_cot_section(self, ctx: AgentContext) -> str:
+        """Inject Financial CoT structure into the prompt if configured."""
+        if not self.cot_template_name:
+            return ""
+        try:
+            from src.prompts import get_cot_template
+            template = get_cot_template(self.cot_template_name)
+            if template:
+                # Return the knowledge + CoT steps (context is built by build_user_message)
+                parts = []
+                if template.financial_knowledge:
+                    parts.append(f"\n## Financial Knowledge\n{template.financial_knowledge}")
+                if template.cot_steps:
+                    steps = "\n".join(f"Step {i+1}: {s}" for i, s in enumerate(template.cot_steps))
+                    parts.append(f"\n## Chain-of-Thought\n{steps}")
+                if template.conclusion_format:
+                    parts.append(f"\n## Output Format\n{template.conclusion_format}")
+                return "\n".join(parts)
+        except Exception:
+            pass
+        return ""
+
     def _build_messages(self, ctx: AgentContext) -> List[Dict[str, Any]]:
         """Assemble the initial messages list for the LLM."""
         messages: List[Dict[str, Any]] = [
-            {"role": "system", "content": self.system_prompt(ctx)},
+            {"role": "system", "content": self.system_prompt(ctx) + self._inject_cot_section(ctx)},
         ]
 
         history = ctx.meta.get("conversation_history")

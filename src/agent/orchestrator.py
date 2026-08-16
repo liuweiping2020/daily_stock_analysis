@@ -8,8 +8,8 @@ Specialist → Decision) for a single stock analysis run.
 Modes:
 - ``quick``   : Technical only → Decision (fastest, ~2 LLM calls)
 - ``standard``: Technical → Intel → Decision (default)
-- ``full``    : Technical → Intel → Risk → Decision
-- ``specialist``: Technical → Intel → Risk → specialist evaluation → Decision
+- ``full``    : Technical → Intel → Risk → Debate → Decision
+- ``specialist``: Technical → Intel → Risk → Arbitration → Debate → specialist evaluation → Decision
 
 The orchestrator:
 1. Seeds an :class:`AgentContext` with the user query and stock code
@@ -33,6 +33,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 from src.agent.llm_adapter import LLMToolAdapter
+from src.agent.blackboard import reset_blackboard
 from src.agent.protocols import (
     AgentContext,
     AgentRunStats,
@@ -370,6 +371,7 @@ class AgentOrchestrator:
         timeout_s = self._get_timeout_seconds()
 
         agents = self._build_agent_chain(ctx)
+        blackboard = reset_blackboard()
         specialist_agents_inserted = False
         index = 0
 
@@ -479,6 +481,13 @@ class AgentOrchestrator:
                 timeout_seconds=remaining_timeout_s,
             )
             stats.record_stage(result)
+            if result.opinion:
+                blackboard.post(
+                    key=f"{agent.agent_name}_opinion",
+                    value=result.opinion.__dict__,
+                    posted_by=agent.agent_name,
+                    tags=["opinion", agent.agent_name],
+                )
             all_tool_calls.extend(
                 tc for tc in (result.meta.get("tool_calls_log") or [])
             )
@@ -524,9 +533,11 @@ class AgentOrchestrator:
             # Non-critical stages that degrade gracefully:
             #   - intel / risk (standard support stages)
             #   - skill agents (specialist evaluation, optional)
+            #   - debate / arbitration (adversarial verification stages; their
+            #     failure should not block the final decision synthesis)
             if result.status == StageStatus.FAILED:
                 non_critical = (
-                    agent.agent_name in ("intel", "risk")
+                    agent.agent_name in ("intel", "risk", "debate", "arbitration")
                     or agent.agent_name in getattr(self, "_skill_agent_names", set())
                 )
                 if not non_critical:
@@ -589,6 +600,8 @@ class AgentOrchestrator:
         from src.agent.agents.intel_agent import IntelAgent
         from src.agent.agents.decision_agent import DecisionAgent
         from src.agent.agents.risk_agent import RiskAgent
+        from src.agent.agents.debate_agent import DebateAgent
+        from src.agent.agents.arbitration_agent import ArbitrationAgent
 
         self._skill_agent_names = set()
 
@@ -603,17 +616,20 @@ class AgentOrchestrator:
         intel = self._prepare_agent(IntelAgent(**common_kwargs))
         risk = self._prepare_agent(RiskAgent(**common_kwargs))
         decision = self._prepare_agent(DecisionAgent(**common_kwargs))
+        debate = self._prepare_agent(DebateAgent(**common_kwargs))
+        arbitration = self._prepare_agent(ArbitrationAgent(**common_kwargs))
 
         if self.mode == "quick":
             return [technical, decision]
         elif self.mode == "standard":
             return [technical, intel, decision]
         elif self.mode == "full":
-            return [technical, intel, risk, decision]
+            # full 模式在 risk 之后、decision 之前插入多空辩论阶段。
+            return [technical, intel, risk, debate, decision]
         elif self.mode == "specialist":
-            # Specialist agents are inserted lazily right before the decision
-            # stage so the router can see the finished technical opinion.
-            return [technical, intel, risk, decision]
+            # specialist 模式先做事实仲裁，再多空辩论，再交给 specialist
+            # agents 与 decision。specialist agents 仍按惰性插入到 decision 之前。
+            return [technical, intel, risk, arbitration, debate, decision]
         else:
             return [technical, intel, decision]
 

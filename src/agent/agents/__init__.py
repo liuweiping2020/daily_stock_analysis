@@ -12,6 +12,8 @@ from src.agent.agents.intel_agent import IntelAgent
 from src.agent.agents.decision_agent import DecisionAgent
 from src.agent.agents.risk_agent import RiskAgent
 from src.agent.agents.portfolio_agent import PortfolioAgent
+from src.agent.agents.debate_agent import DebateAgent
+from src.agent.agents.arbitration_agent import ArbitrationAgent
 
 __all__ = [
     "BaseAgent",
@@ -20,4 +22,6 @@ __all__ = [
     "DecisionAgent",
     "RiskAgent",
     "PortfolioAgent",
+    "DebateAgent",
+    "ArbitrationAgent",
 ]

@@ -29,6 +29,7 @@ from src.data.stock_mapping import STOCK_NAME_MAP, is_meaningful_stock_name
 from src.services.run_diagnostics import record_provider_run
 from .fundamental_adapter import AkshareFundamentalAdapter
 from .yfinance_fundamental_adapter import YfinanceFundamentalAdapter
+from .health import get_health_tracker
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -589,6 +590,7 @@ class DataFetcherManager:
         self._fetcher_call_locks_lock = RLock()
         self._stock_name_cache: Dict[str, str] = {}
         self._stock_name_cache_lock = RLock()
+        self._health_tracker = get_health_tracker()
         
         if fetchers:
             # 按优先级排序
@@ -625,7 +627,26 @@ class DataFetcherManager:
     def _get_fetchers_snapshot(self) -> List[BaseFetcher]:
         self._ensure_concurrency_guards()
         with self._fetchers_lock:
-            return list(getattr(self, "_fetchers", []))
+            fetchers = list(getattr(self, "_fetchers", []))
+        return self._apply_health_ordering(fetchers)
+
+    def _apply_health_ordering(self, fetchers: List[BaseFetcher]) -> List[BaseFetcher]:
+        """Reorder fetchers by health-adjusted priority and skip open circuits.
+
+        Unhealthy fetchers get a priority penalty so healthier sources are tried
+        first; fetchers whose circuit breaker is open are filtered out. If
+        filtering would remove every fetcher, fall back to the ordered list so
+        the manager never ends up with an empty candidate set.
+        """
+        health_tracker = getattr(self, "_health_tracker", None)
+        if health_tracker is None or not fetchers:
+            return fetchers
+        ordered = sorted(
+            fetchers,
+            key=lambda f: health_tracker.get_effective_priority(f.name, f.priority),
+        )
+        filtered = [f for f in ordered if health_tracker.should_try(f.name)]
+        return filtered if filtered else ordered
 
     def _refresh_fetcher_indexes_locked(self) -> None:
         self._fetchers_by_name = {fetcher.name: fetcher for fetcher in self._fetchers}
@@ -683,10 +704,33 @@ class DataFetcherManager:
             return lock
 
     def _call_fetcher_method(self, fetcher: BaseFetcher, method_name: str, *args, **kwargs):
-        """Serialize shared fetcher state access through manager-owned per-instance locks."""
+        """Serialize shared fetcher state access through manager-owned per-instance locks.
+
+        Records success/failure and latency with the health tracker so the
+        circuit breaker and dynamic priority adjustments stay current. A fetcher
+        whose circuit is open is skipped entirely (raises
+        DataSourceUnavailableError) so failover loops move on to the next source.
+        """
+        health_tracker = getattr(self, "_health_tracker", None)
+        fetcher_name = getattr(fetcher, "name", method_name)
+        if health_tracker is not None and not health_tracker.should_try(fetcher_name):
+            raise DataSourceUnavailableError(
+                f"[{fetcher_name}] circuit open, skip {method_name}"
+            )
         method = getattr(fetcher, method_name)
-        with self._get_fetcher_call_lock(fetcher):
-            return method(*args, **kwargs)
+        call_start = time.time()
+        try:
+            with self._get_fetcher_call_lock(fetcher):
+                result = method(*args, **kwargs)
+        except Exception as exc:
+            if health_tracker is not None:
+                is_rate_limit = isinstance(unwrap_exception(exc), RateLimitError)
+                health_tracker.record_failure(fetcher_name, is_rate_limit=is_rate_limit)
+            raise
+        if health_tracker is not None:
+            latency_ms = (time.time() - call_start) * 1000.0
+            health_tracker.record_success(fetcher_name, latency_ms)
+        return result
 
     @classmethod
     def _filter_daily_fetchers_for_market(

@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - [修复] 收口 Web 中文界面残留英文文案与设置页 help 缺口，回测页改为中文展示，并让 Web 设置页仅展示已注册且带说明的配置项。
 
+- [新功能] 数据源健康追踪与熔断：新增 DataSourceHealthTracker，基于成功率、延迟、限流状态动态调整数据源优先级，支持熔断器模式自动隔离故障源。
+- [新功能] 多Agent辩论与事实仲裁：新增 DebateAgent 和 ArbitrationAgent，full/specialist 模式自动插入多空辩论和事实校验阶段。
+- [新功能] 经验复盘系统：新增 DecisionSnapshot/ExperienceRecord 数据模型和 ExperienceReviewService，支持 5/20/60 日收益回填与归因分析。
+- [新功能] 模拟交易服务：新增 SimTradingService，支持 A 股 100 股整手、T+1、印花税、佣金等规则的事件溯源模拟账本。
+- [新功能] Financial CoT 提示工程：新增五段式金融思维链模板（Instruction/Context/Knowledge/CoT/Conclusion），预置技术面、基本面、风险、组合决策四套模板，降低 LLM 金融幻觉。
+- [新功能] 多Agent共享黑板：新增 SharedBlackboard 线程安全共享记忆，Agent 可发布/查询/订阅中间结论和工具缓存，避免重复计算。
+- [新功能] 策略抽象与事件驱动回测：新增 Strategy 基类（MA交叉、RSI、多策略聚合）、EventBacktestEngine 事件驱动回测引擎，支持 A 股佣金/印花税/整手规则、权益曲线、最大回撤和 Sharpe 比率计算。
+- [新功能] 统一数据API：新增 UnifiedDataAPI 市场无关数据访问层，自动检测 cn/hk/us 市场，统一日线/行情/基本面/搜索响应格式，支持多市场批量查询和综合摘要；新增 /api/v1/data 系列接口。
+- [新功能] 因子挖掘引擎：新增 Factor 基类与 6 个内置因子（MA偏离度、RSI、波动率、动量、量比、价量相关），FactorEngine 支持 IC/rank IC 评估，FactorService 提供计算、存储和查询能力。
+
 ## [3.19.0] - 2026-05-29
 
 ### 新功能

@@ -763,6 +763,98 @@ class AlertCooldownRecord(Base):
     )
 
 
+class DecisionSnapshot(Base):
+    """Decision snapshot for experience review (T-day record)."""
+    __tablename__ = 'decision_snapshots'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    analysis_history_id = Column(Integer, ForeignKey('analysis_history.id'), nullable=True, index=True)
+    code = Column(String(10), nullable=False, index=True)
+    decision_date = Column(Date, nullable=False, index=True)
+    action = Column(String(20), nullable=False)  # BUY/HOLD/SELL
+    conviction = Column(Float)  # 0.0-1.0
+    target_price = Column(Float)
+    stop_loss = Column(Float)
+    take_profit = Column(Float)
+    reasoning = Column(Text)
+    analyst_reports_json = Column(Text)  # JSON: role -> report
+    debate_summary = Column(Text)
+    status = Column(String(20), nullable=False, default='pending')  # pending/reviewed
+    created_at = Column(DateTime, default=datetime.now, index=True)
+
+
+class ExperienceRecord(Base):
+    """Experience record from backtesting AI decisions against reality."""
+    __tablename__ = 'experience_records'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    decision_snapshot_id = Column(Integer, ForeignKey('decision_snapshots.id'), nullable=False, index=True)
+    code = Column(String(10), nullable=False, index=True)
+    ret_5d = Column(Float)
+    ret_20d = Column(Float)
+    ret_60d = Column(Float)
+    label = Column(String(20))  # correct/partial/wrong
+    root_cause = Column(Text)  # attribution analysis
+    lessons_json = Column(Text)  # JSON list of lessons
+    tags_json = Column(Text)  # JSON list of tags
+    confidence = Column(Float, default=0.5)
+    reviewed_at = Column(DateTime, default=datetime.now, index=True)
+
+
+class SimOrder(Base):
+    """Simulated trading order (pending before execution)."""
+    __tablename__ = 'sim_orders'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    account_id = Column(Integer, ForeignKey('portfolio_accounts.id'), nullable=False, index=True)
+    code = Column(String(16), nullable=False, index=True)
+    side = Column(String(8), nullable=False)  # buy/sell
+    order_type = Column(String(16), nullable=False, default='market')  # market/limit
+    quantity = Column(Float, nullable=False)
+    price = Column(Float)  # limit price or quoted market price
+    status = Column(String(16), nullable=False, default='pending', index=True)  # pending/filled/cancelled
+    notes = Column(Text)
+    created_at = Column(DateTime, default=datetime.now, index=True)
+
+
+class SimExecution(Base):
+    """Execution record for a simulated order (event-sourced ledger)."""
+    __tablename__ = 'sim_executions'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    order_id = Column(Integer, ForeignKey('sim_orders.id'), nullable=False, index=True)
+    account_id = Column(Integer, ForeignKey('portfolio_accounts.id'), nullable=False, index=True)
+    code = Column(String(16), nullable=False, index=True)
+    side = Column(String(8), nullable=False)
+    quantity = Column(Float, nullable=False)
+    execution_price = Column(Float, nullable=False)
+    commission = Column(Float, nullable=False, default=0.0)
+    stamp_duty = Column(Float, nullable=False, default=0.0)
+    transfer_fee = Column(Float, nullable=False, default=0.0)
+    total_cost = Column(Float, nullable=False, default=0.0)  # buy: outflow; sell: net proceeds (negative for inflow)
+    trade_date = Column(Date, nullable=False, index=True)
+    executed_at = Column(DateTime, default=datetime.now, index=True)
+
+
+class FactorSnapshot(Base):
+    """Computed factor values for a stock on a specific date."""
+    __tablename__ = 'factor_snapshots'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    code = Column(String(10), nullable=False, index=True)
+    date = Column(Date, nullable=False, index=True)
+    factor_name = Column(String(32), nullable=False, index=True)
+    factor_category = Column(String(16), nullable=False, default='technical')
+    value = Column(Float, nullable=False)
+    raw_data_json = Column(Text)
+    created_at = Column(DateTime, default=datetime.now, index=True)
+
+    __table_args__ = (
+        UniqueConstraint('code', 'date', 'factor_name', name='uix_factor_code_date_name'),
+        Index('ix_factor_code_date', 'code', 'date'),
+    )
+
+
 class _DatabaseManagerMeta(type):
     """Serialize DatabaseManager construction across __new__ and __init__."""
 
